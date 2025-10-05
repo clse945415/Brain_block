@@ -116,5 +116,121 @@
 
   render();
 </script>
+<script>
+// === 你的 Google Apps Script Web App 端點（直接使用這個） ===
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwQwtom9YKw05wf_GvLuycX-1vFhH7Bl_9FSsPfURB7yoOi9eVoRmJ6gZ8bwuA0Z21aMQ/exec';
+const PLAYER_NAME_KEY = 'brain_block_player_name_v1';
+
+// == 小工具：玩家名字（第一次會跳窗）
+function getPlayerName() {
+  let name = localStorage.getItem(PLAYER_NAME_KEY) || '';
+  if (!name) {
+    name = prompt('請輸入你的名字（排行榜會顯示）', '') || '';
+    name = name.trim();
+    if (name) localStorage.setItem(PLAYER_NAME_KEY, name);
+  }
+  return name;
+}
+
+// == 上傳目前完成進度（依賴你原本頁面已有的 window.done / window.TOTAL）
+async function uploadProgress() {
+  try {
+    const name = getPlayerName();
+    if (!name) return;
+    const total = window.TOTAL || 96;
+    const progress = (window.done || []).filter(Boolean).length;
+    await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ name, progress }),
+      mode: 'cors',
+      cache: 'no-store'
+    });
+  } catch (e) { console.warn('Upload failed', e); }
+}
+
+// == 讀取排行榜
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch(GAS_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const data = await res.json();
+    return (data && data.rows) || [];
+  } catch (e) { console.warn('Fetch leaderboard failed', e); return []; }
+}
+
+// == 動態插入「排行榜」按鈕、彈窗、樣式，並接上事件
+(function initLeaderboardUI(){
+  // 1) 樣式
+  const css = `
+  .rank-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;align-items:center;justify-content:center;z-index:50}
+  .rank-card{background:#fff;border-radius:12px;max-width:520px;width:92vw;max-height:70vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:14px;position:relative}
+  .rank-card h3{margin:6px 0 10px 0;font-size:16px}
+  .rank-table{width:100%;border-collapse:collapse;font-size:14px}
+  .rank-table th,.rank-table td{border-bottom:1px solid #eee;padding:8px 6px;text-align:left}
+  .rank-close{position:absolute;right:12px;top:10px;font-size:18px;border:none;background:transparent;cursor:pointer}
+  .rank-btn{border:1px solid #ddd;border-radius:20px;padding:6px 10px;background:#f7f7f7;font-size:12px;margin-left:8px}
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  // 2) 排行榜按鈕（加到 header 右邊）
+  const header = document.querySelector('header') || document.body;
+  const rankBtn = document.createElement('button');
+  rankBtn.id = 'rank';
+  rankBtn.className = 'rank-btn';
+  rankBtn.textContent = '排行榜';
+  header.appendChild(rankBtn);
+
+  // 3) 彈窗 DOM
+  const wrap = document.createElement('div');
+  wrap.id = 'rankWrap';
+  wrap.className = 'rank-backdrop';
+  wrap.innerHTML = `
+    <div class="rank-card">
+      <button class="rank-close" id="rankClose">×</button>
+      <h3>排行榜</h3>
+      <table class="rank-table" id="rankTable">
+        <thead><tr><th>名次</th><th>玩家</th><th>完成</th><th>更新</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const tbody = wrap.querySelector('#rankTable tbody');
+  const closeBtn = wrap.querySelector('#rankClose');
+
+  // 4) 事件：打開排行榜
+  rankBtn.addEventListener('click', async () => {
+    getPlayerName(); // 確保已設定名字
+    wrap.style.display = 'flex';
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:10px;color:#666">讀取中…</td></tr>';
+    const rows = await fetchLeaderboard();
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:10px;color:#666">目前還沒有任何紀錄</td></tr>';
+      return;
+    }
+    const total = window.TOTAL || 96;
+    tbody.innerHTML = rows.map((r, i) => {
+      const when = r.lastUpdate ? new Date(r.lastUpdate).toLocaleString() : '';
+      return `<tr>
+        <td>${i+1}</td><td>${r.name}</td>
+        <td>${r.progress} / ${total}</td><td>${when}</td>
+      </tr>`;
+    }).join('');
+  });
+
+  // 5) 關閉彈窗
+  closeBtn.addEventListener('click', ()=> wrap.style.display='none');
+  wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.style.display='none'; });
+
+  // 6) 監聽「完成」按鈕，切換後上傳（不改你原本的邏輯）
+  const doneBtn = document.getElementById('done');
+  if (doneBtn) {
+    doneBtn.addEventListener('click', () => {
+      setTimeout(uploadProgress, 80); // 等原本邏輯更新完再上傳
+    });
+  }
+})();
+ </script>
 </body>
 </html>
