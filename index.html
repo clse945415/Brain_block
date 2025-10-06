@@ -63,7 +63,7 @@
 
   totalEl.textContent = TOTAL;
 
-  const STORAGE_KEY = 'brain_block_done_v1';
+  const STORAGE_KEY = 'brain_block_done_v4';
   let done = Array(TOTAL).fill(false);
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -119,7 +119,7 @@
 <script>
 // === 你的 Google Apps Script Web App 端點（直接使用這個） ===
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbz0CwRHYNwH6UxYQlehseeUhmnvmcFTm_J_AFXsa9Gj3nn33Kt0UWoIwOd3ZDs4VGCKEw/exec';
-const PLAYER_NAME_KEY = 'brain_block_player_name_v1';
+const PLAYER_NAME_KEY = 'brain_block_player_name_v4';
 
 // == 小工具：玩家名字（第一次會跳窗）
 function getPlayerName() {
