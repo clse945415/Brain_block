@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'brain-block-v3';
+const CACHE_NAME = 'brain-block-v2';
 const ASSETS = [
   './',
   './index.html',
